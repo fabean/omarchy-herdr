@@ -2,6 +2,8 @@
 
 An Omarchy bar widget for monitoring [Herdr](https://herdr.dev) agents. It shows active or blocked agent counts in the bar and opens a detailed, keyboard-accessible panel with the status of every agent.
 
+![Herdr agent activity panel in the Omarchy bar](preview.png)
+
 ## Requirements
 
 - Omarchy with the Quattro shell plugin system
