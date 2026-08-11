@@ -368,6 +368,7 @@ Panel {
         Text {
           width: parent.width
           text: String(agentRow.agent.name || "Agent")
+          textFormat: Text.PlainText
           color: root.foreground
           font.family: root.fontFamily
           font.pixelSize: Style.font.body
@@ -378,6 +379,7 @@ Panel {
         Text {
           width: parent.width
           text: String(agentRow.agent.paneId || agentRow.agent.cwd || "")
+          textFormat: Text.PlainText
           color: root.dim
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
@@ -390,6 +392,7 @@ Panel {
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         text: root.statusLabel(String(agentRow.agent.status || "unknown"))
+        textFormat: Text.PlainText
         color: root.agentColor(String(agentRow.agent.status || "unknown"), root.dim)
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
