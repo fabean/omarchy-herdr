@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -18,6 +19,11 @@ Panel {
   readonly property string stateCommand: (Quickshell.env("HOME") || "") + "/.config/omarchy/plugins/io.github.fabean.herdr/state.sh"
   readonly property string themeColorsPath: (Quickshell.env("HOME") || "") + "/.local/state/omarchy/current/theme/colors.toml"
   property color runningColor: Color.accent
+  property color doneColor: Color.accent
+
+  // Panel, unlike BarWidget, does not lift these off the bar for us.
+  readonly property bool vertical: bar ? bar.vertical : false
+  readonly property int barSize: bar ? bar.barSize : Style.bar.sizeHorizontal
 
   property var state: ({
     online: false,
@@ -38,16 +44,61 @@ Panel {
   readonly property int activeCount: working + blocked
   readonly property var agents: state && Array.isArray(state.agents) ? state.agents : []
   readonly property color statusColor: blocked > 0 ? urgent : (working > 0 ? runningColor : foreground)
-  readonly property string barText: {
-    if (!online) return "󰚩 ×"
-    if (blocked > 0) return "󰚩 " + blocked
-    if (working > 0) return "󰚩 " + working
-    return "󰚩 " + total
+
+  readonly property bool showGlyph: flag("showGlyph", true)
+  readonly property bool showCount: flag("showCount", true)
+  readonly property bool showDots: flag("showDots", false)
+  // With every block off there would be nothing left to click.
+  readonly property bool glyphVisible: showGlyph || (!showCount && !showDots)
+
+  // "Pane" holds each dot in place for the life of its pane so only its colour
+  // changes; "Status" keeps state.sh's blocked-first order, which reshuffles the
+  // row on every state change.
+  readonly property string dotOrder: String(root.setting("dotOrder", "Pane")).toLowerCase()
+  readonly property var orderedAgents: dotOrder === "status" ? agents : agents.slice().sort(comparePanes)
+
+  readonly property int maxDots: Math.max(1, Math.round(Number(root.setting("maxDots", 8)) || 8))
+  readonly property bool pulseBlocked: flag("pulseBlocked", true)
+  readonly property var barDots: orderedAgents.length > maxDots ? orderedAgents.slice(0, maxDots) : orderedAgents
+  readonly property int hiddenCount: Math.max(0, agents.length - barDots.length)
+  readonly property real dotSize: Style.spaceReal(8)
+  readonly property real dotGap: Style.space(4)
+  readonly property real blockGap: Style.space(6)
+  readonly property real barPadding: Style.spaceReal(6)
+
+  readonly property string countText: {
+    if (!online) return "×"
+    if (blocked > 0) return String(blocked)
+    if (working > 0) return String(working)
+    return String(total)
   }
 
   visible: true
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
+
+  // Pane ids are numbered, so "wJ:p10" has to sort after "wJ:p2": every digit
+  // run is zero-padded before the ids are compared as plain strings.
+  function paneSortKey(agent) {
+    var id = String(agent.paneId || agent.cwd || agent.name || "")
+    return id.replace(/\d+/g, function(digits) { return ("0000000000" + digits).slice(-10) })
+  }
+
+  function comparePanes(left, right) {
+    var a = paneSortKey(left)
+    var b = paneSortKey(right)
+    return a < b ? -1 : (a > b ? 1 : 0)
+  }
+
+  // shell.json is hand-editable, so a yes/no setting can arrive as a string.
+  function flag(name, fallback) {
+    var value = root.setting(name, fallback)
+    if (typeof value === "string") {
+      var text = value.toLowerCase()
+      return text === "true" || text === "yes" || text === "on" || text === "1"
+    }
+    return value === true
+  }
 
   function parseState(raw) {
     try {
@@ -64,22 +115,47 @@ Panel {
     stateProcess.running = true
   }
 
-  function loadRunningColor(raw) {
-    var lines = String(raw || "").split("\n")
-    for (var i = 0; i < lines.length; i++) {
-      var match = lines[i].match(/^\s*green\s*=\s*["']?(#[0-9A-Fa-f]{6})/)
-      if (match) {
-        runningColor = match[1]
-        return
-      }
-    }
+  function resetThemeColors() {
     runningColor = Color.accent
+    doneColor = Color.accent
+  }
+
+  function loadThemeColors(raw) {
+    var lines = String(raw || "").split("\n")
+    var found = ({})
+    for (var i = 0; i < lines.length; i++) {
+      var match = lines[i].match(/^\s*([A-Za-z_]+)\s*=\s*["']?(#[0-9A-Fa-f]{6})/)
+      if (match) found[match[1]] = match[2]
+    }
+    runningColor = found["green"] || Color.accent
+    doneColor = found["blue"] || found["cyan"] || Color.accent
   }
 
   function agentColor(status, fallback) {
     if (status === "blocked") return urgent
     if (status === "working") return runningColor
+    if (status === "done") return doneColor
     return fallback
+  }
+
+  // Filled is a state that wants something from you, so the dots still read
+  // apart when the colours do not.
+  function dotFilled(status) {
+    return status === "blocked" || status === "working" || status === "done"
+  }
+
+  function barSummary() {
+    if (!online) return "Herdr is not running"
+    if (total === 0) return "No agents"
+    var parts = []
+    if (blocked > 0) parts.push(blocked + " blocked")
+    if (working > 0) parts.push(working + " working")
+    if (Number(state.done || 0) > 0) parts.push(Number(state.done) + " done")
+    if (Number(state.idle || 0) > 0) parts.push(Number(state.idle) + " idle")
+    if (Number(state.unknown || 0) > 0) parts.push(Number(state.unknown) + " unknown")
+    // Agents past the dot cap have no dot, so they are accounted for here.
+    if (hiddenCount > 0) parts.push("+" + hiddenCount + " beyond the dot cap")
+    return parts.join("  ·  ")
   }
 
   function statusGlyph(status) {
@@ -127,9 +203,9 @@ Panel {
     path: root.themeColorsPath
     watchChanges: true
     printErrors: false
-    onLoaded: root.loadRunningColor(text())
+    onLoaded: root.loadThemeColors(text())
     onFileChanged: reload()
-    onLoadFailed: root.runningColor = Color.accent
+    onLoadFailed: root.resetThemeColors()
   }
 
   Timer {
@@ -144,16 +220,88 @@ Panel {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.barText
+    text: ""
+    // barContent replaces the label, so the button is left with the press
+    // handling, the tooltip, and the slot geometry.
+    labelVisible: false
+    hasVisualContent: true
     active: root.activeCount > 0
     activeColor: root.statusColor
+    // A dots-only widget has no text to say it is offline.
+    dimmed: !root.online
     fontSize: Style.font.bodySmall
-    horizontalMargin: 3.5
-    tooltipText: ""
+    fixedWidth: root.vertical ? root.barSize : Math.max(12, barContent.implicitWidth + root.barPadding * 2)
+    fixedHeight: root.vertical ? Math.max(12, barContent.implicitHeight + root.barPadding * 2) : root.barSize
+    tooltipText: root.barSummary()
 
     onPressed: function(buttonCode) {
       if (buttonCode === Qt.RightButton) root.refresh()
       else root.toggle()
+    }
+
+    GridLayout {
+      id: barContent
+      anchors.centerIn: parent
+      // A block that is switched off is invisible, which the layout skips.
+      columns: root.vertical ? 1 : 3
+      columnSpacing: root.blockGap
+      rowSpacing: root.blockGap
+
+      Text {
+        visible: root.glyphVisible
+        Layout.alignment: Qt.AlignCenter
+        text: "󰚩"
+        color: root.statusColor
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        renderType: Text.NativeRendering
+
+        Behavior on color {
+          enabled: !root.bar || root.bar.foregroundAnimationEnabled
+          ColorAnimation { duration: 160 }
+        }
+      }
+
+      Text {
+        visible: root.showCount
+        Layout.alignment: Qt.AlignCenter
+        text: root.countText
+        color: root.statusColor
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        renderType: Text.NativeRendering
+
+        Behavior on color {
+          enabled: !root.bar || root.bar.foregroundAnimationEnabled
+          ColorAnimation { duration: 160 }
+        }
+      }
+
+      GridLayout {
+        visible: root.showDots
+        Layout.alignment: Qt.AlignCenter
+        columns: root.vertical ? 1 : root.maxDots + 1
+        columnSpacing: root.dotGap
+        rowSpacing: root.dotGap
+
+        StatusDot {
+          // An empty or absent herd draws no dot, and a widget with nothing in
+          // it cannot be clicked, so one quiet dot holds the slot.
+          visible: !root.online || root.agents.length === 0
+          Layout.alignment: Qt.AlignCenter
+          status: "empty"
+        }
+
+        Repeater {
+          model: root.online ? root.barDots : []
+
+          StatusDot {
+            required property var modelData
+            Layout.alignment: Qt.AlignCenter
+            status: String(modelData.status || "unknown")
+          }
+        }
+      }
     }
   }
 
@@ -285,6 +433,37 @@ Panel {
           }
         }
       }
+    }
+  }
+
+  component StatusDot: Rectangle {
+    id: dot
+    property string status: "unknown"
+
+    readonly property bool filled: root.dotFilled(dot.status)
+    readonly property color tint: root.agentColor(dot.status, root.dim)
+
+    implicitWidth: root.dotSize
+    implicitHeight: root.dotSize
+    radius: width / 2
+    antialiasing: true
+    color: dot.filled ? dot.tint : "transparent"
+    border.width: dot.filled ? 0 : Math.max(1, Math.round(root.dotSize / 4))
+    border.color: dot.tint
+
+    Behavior on color {
+      ColorAnimation { duration: 160 }
+    }
+
+    // The animation owns opacity, so a dot that stops pulsing has to be put
+    // back to full or it keeps whatever value the fade left behind.
+    SequentialAnimation on opacity {
+      id: pulse
+      running: root.pulseBlocked && dot.status === "blocked"
+      loops: Animation.Infinite
+      onRunningChanged: if (!pulse.running) dot.opacity = 1
+      NumberAnimation { to: 0.35; duration: 650; easing.type: Easing.InOutSine }
+      NumberAnimation { to: 1; duration: 650; easing.type: Easing.InOutSine }
     }
   }
 
