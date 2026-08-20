@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.fabean.herdr",
   "name": "Herdr",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Josh Fabean",
   "description": "Monitor Herdr agent activity and status from the Omarchy bar.",
   "license": "MIT",
@@ -15,6 +15,62 @@
     "description": "Working and blocked agent status",
     "category": "Development",
     "allowMultiple": false,
-    "defaultSection": "right"
+    "defaultSection": "right",
+    "defaults": {
+      "showGlyph": true,
+      "showCount": true,
+      "showDots": false,
+      "dotOrder": "Pane",
+      "maxDots": 8,
+      "pulseBlocked": true
+    },
+    "schema": [
+      {
+        "key": "showGlyph",
+        "type": "boolean",
+        "label": "Herd glyph",
+        "description": "Show the robot glyph, tinted by the most demanding agent state.",
+        "defaultValue": true
+      },
+      {
+        "key": "showCount",
+        "type": "boolean",
+        "label": "Agent count",
+        "description": "Show one number: agents blocked, else agents working, else the size of the herd.",
+        "defaultValue": true
+      },
+      {
+        "key": "showDots",
+        "type": "boolean",
+        "label": "Status dots",
+        "description": "Show one colored dot per agent, blocked first, then working, done, and idle.",
+        "defaultValue": false
+      },
+      {
+        "key": "dotOrder",
+        "type": "enum",
+        "label": "Dot order",
+        "options": ["Pane", "Status"],
+        "defaultValue": "Pane",
+        "description": "Pane keeps each agent's dot in the same place for the life of its pane, so only the colour changes. Status puts blocked agents first, which reorders the dots whenever an agent changes state."
+      },
+      {
+        "key": "maxDots",
+        "type": "integer",
+        "label": "Maximum dots",
+        "description": "Agents beyond this many get no dot of their own; the tooltip counts them.",
+        "min": 1,
+        "max": 24,
+        "step": 1,
+        "defaultValue": 8
+      },
+      {
+        "key": "pulseBlocked",
+        "type": "boolean",
+        "label": "Pulse blocked agents",
+        "description": "Fade the dot of any agent that is waiting for your input.",
+        "defaultValue": true
+      }
+    ]
   }
 }

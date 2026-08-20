@@ -32,8 +32,30 @@ omarchy plugin enable io.github.fabean.herdr --section right
 
 - Left-click the widget to open or close the agent panel.
 - Right-click the widget to refresh immediately.
+- Hover the widget for a per-state count.
 - In the panel, press `R` or `Enter` to refresh and `Escape` to close.
 - When Herdr is unavailable, the widget displays an offline indicator.
+
+## Settings
+
+Per-widget settings, set from the bar's plugin settings, with `omarchy bar set`, or in the widget's `shell.json` layout entry.
+
+| Key | Default | Effect |
+| --- | --- | --- |
+| `showGlyph` | `true` | Show the herd glyph. |
+| `showCount` | `true` | Show the agent count. |
+| `showDots` | `false` | Show one dot per agent. |
+| `dotOrder` | `Pane` | `Pane` keeps each dot in the same place for the life of its pane, so only its colour changes. `Status` puts blocked agents first, which reorders the row on every state change. |
+| `maxDots` | `8` | Agents past this many get no dot of their own; the tooltip counts them. |
+| `pulseBlocked` | `true` | Fade the dot of any agent waiting for your input. |
+
+With all three blocks off the widget would have nothing left to click, so the glyph comes back.
+
+```bash
+omarchy bar set io.github.fabean.herdr showDots true --json
+omarchy bar set io.github.fabean.herdr showGlyph false --json
+omarchy bar set io.github.fabean.herdr showCount false --json
+```
 
 ## Update
 
