@@ -16,6 +16,7 @@ Panel {
   readonly property color dim: Qt.darker(foreground, 1.4)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property string stateCommand: (Quickshell.env("HOME") || "") + "/.config/omarchy/plugins/io.github.fabean.herdr/state.sh"
+  readonly property string focusCommand: (Quickshell.env("HOME") || "") + "/.config/omarchy/plugins/io.github.fabean.herdr/focus-agent.sh"
   readonly property string themeColorsPath: (Quickshell.env("HOME") || "") + "/.local/state/omarchy/current/theme/colors.toml"
   property color runningColor: Color.accent
 
@@ -27,6 +28,7 @@ Panel {
     done: 0,
     idle: 0,
     unknown: 0,
+    remoteEnabled: false,
     agents: []
   })
   property bool refreshing: false
@@ -37,6 +39,7 @@ Panel {
   readonly property int blocked: Number(state.blocked || 0)
   readonly property int activeCount: working + blocked
   readonly property var agents: state && Array.isArray(state.agents) ? state.agents : []
+  readonly property bool remoteEnabled: state && state.remoteEnabled === true
   readonly property color statusColor: blocked > 0 ? urgent : (working > 0 ? runningColor : foreground)
   readonly property string barText: {
     if (!online) return "󰚩 ×"
@@ -62,6 +65,14 @@ Panel {
     if (stateProcess.running) return
     refreshing = true
     stateProcess.running = true
+  }
+
+  function focusAgent(agent) {
+    if (!agent || focusProcess.running) return
+    focusProcess.command = [root.focusCommand, String(agent.host || ""),
+      String(agent.session || "default"), String(agent.paneId || "")]
+    focusProcess.running = true
+    close()
   }
 
   function loadRunningColor(raw) {
@@ -122,6 +133,8 @@ Panel {
       if (exitCode !== 0) console.warn("io.github.fabean.herdr: state command exited", exitCode)
     }
   }
+
+  Process { id: focusProcess }
 
   FileView {
     path: root.themeColorsPath
@@ -346,6 +359,15 @@ Panel {
     Item {
       width: agentRow.width
       implicitHeight: Math.max(agentGlyph.implicitHeight, agentLabels.implicitHeight, agentStatus.implicitHeight)
+      height: implicitHeight
+
+      MouseArea {
+        anchors.fill: parent
+        z: 1
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.focusAgent(agentRow.agent)
+      }
 
       Text {
         id: agentGlyph
@@ -367,7 +389,12 @@ Panel {
 
         Text {
           width: parent.width
-          text: String(agentRow.agent.name || "Agent")
+          text: {
+            var name = String(agentRow.agent.name || "Agent")
+            if (!root.remoteEnabled) return name
+            var host = String(agentRow.agent.host || "")
+            return (host || "local") + ": " + name
+          }
           color: root.foreground
           font.family: root.fontFamily
           font.pixelSize: Style.font.body

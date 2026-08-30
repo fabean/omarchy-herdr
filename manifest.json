@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.fabean.herdr",
   "name": "Herdr",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Josh Fabean",
   "description": "Monitor Herdr agent activity and status from the Omarchy bar.",
   "license": "MIT",
