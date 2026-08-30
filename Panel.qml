@@ -223,6 +223,7 @@ Panel {
             iconComponent: Component {
               Text {
                 text: "󰚩"
+                textFormat: Text.PlainText
                 color: root.statusColor
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.display
@@ -234,6 +235,7 @@ Panel {
             visible: !root.online
             width: parent.width
             text: "Herdr is not running"
+            textFormat: Text.PlainText
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.body
@@ -324,6 +326,7 @@ Panel {
       Text {
         anchors.horizontalCenter: parent.horizontalCenter
         text: summaryCell.value
+        textFormat: Text.PlainText
         color: summaryCell.active
           ? (summaryCell.urgentCell ? root.urgent : (summaryCell.runningCell ? root.runningColor : root.foreground))
           : root.foreground
@@ -335,6 +338,7 @@ Panel {
       Text {
         anchors.horizontalCenter: parent.horizontalCenter
         text: summaryCell.label.toUpperCase()
+        textFormat: Text.PlainText
         color: root.dim
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
@@ -374,6 +378,7 @@ Panel {
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
         text: root.statusGlyph(String(agentRow.agent.status || "unknown"))
+        textFormat: Text.PlainText
         color: root.agentColor(String(agentRow.agent.status || "unknown"), root.foreground)
         font.family: root.fontFamily
         font.pixelSize: Style.font.subtitle
@@ -395,6 +400,7 @@ Panel {
             var host = String(agentRow.agent.host || "")
             return (host || "local") + ": " + name
           }
+          textFormat: Text.PlainText
           color: root.foreground
           font.family: root.fontFamily
           font.pixelSize: Style.font.body
@@ -405,6 +411,7 @@ Panel {
         Text {
           width: parent.width
           text: String(agentRow.agent.paneId || agentRow.agent.cwd || "")
+          textFormat: Text.PlainText
           color: root.dim
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
@@ -417,6 +424,7 @@ Panel {
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         text: root.statusLabel(String(agentRow.agent.status || "unknown"))
+        textFormat: Text.PlainText
         color: root.agentColor(String(agentRow.agent.status || "unknown"), root.dim)
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
