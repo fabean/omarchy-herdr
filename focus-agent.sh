@@ -75,8 +75,8 @@ fi
 herdr_command=(herdr)
 [[ -n $host ]] && herdr_command+=(--remote "$host")
 [[ $session == default ]] || herdr_command+=(--session "$session")
-if command -v foot >/dev/null 2>&1; then
-  setsid foot --app-id=herdr -e "${herdr_command[@]}" >/dev/null 2>&1 &
-elif command -v xdg-terminal-exec >/dev/null 2>&1; then
+if command -v xdg-terminal-exec >/dev/null 2>&1; then
   setsid xdg-terminal-exec -- "${herdr_command[@]}" >/dev/null 2>&1 &
+elif command -v foot >/dev/null 2>&1; then
+  setsid foot --app-id=herdr -e "${herdr_command[@]}" >/dev/null 2>&1 &
 fi
