@@ -25,6 +25,7 @@ Panel {
     total: 0,
     working: 0,
     blocked: 0,
+    errors: 0,
     done: 0,
     idle: 0,
     unknown: 0,
@@ -37,13 +38,15 @@ Panel {
   readonly property int total: Number(state.total || 0)
   readonly property int working: Number(state.working || 0)
   readonly property int blocked: Number(state.blocked || 0)
-  readonly property int activeCount: working + blocked
+  readonly property int errors: Number(state.errors || 0)
+  readonly property int attentionCount: blocked + errors
+  readonly property int activeCount: working + attentionCount
   readonly property var agents: state && Array.isArray(state.agents) ? state.agents : []
   readonly property bool remoteEnabled: state && state.remoteEnabled === true
-  readonly property color statusColor: blocked > 0 ? urgent : (working > 0 ? runningColor : foreground)
+  readonly property color statusColor: attentionCount > 0 ? urgent : (working > 0 ? runningColor : foreground)
   readonly property string barText: {
     if (!online) return "󰚩 ×"
-    if (blocked > 0) return "󰚩 " + blocked
+    if (attentionCount > 0) return "󰚩 " + attentionCount
     if (working > 0) return "󰚩 " + working
     return "󰚩 " + total
   }
@@ -70,7 +73,8 @@ Panel {
   function focusAgent(agent) {
     if (!agent || focusProcess.running) return
     focusProcess.command = [root.focusCommand, String(agent.host || ""),
-      String(agent.session || "default"), String(agent.paneId || "")]
+      String(agent.session || "default"), String(agent.terminalId || agent.paneId || ""),
+      String(agent.backend || "herdr")]
     focusProcess.running = true
     close()
   }
@@ -88,7 +92,7 @@ Panel {
   }
 
   function agentColor(status, fallback) {
-    if (status === "blocked") return urgent
+    if (status === "blocked" || status === "error") return urgent
     if (status === "working") return runningColor
     return fallback
   }
@@ -96,6 +100,7 @@ Panel {
   function statusGlyph(status) {
     if (status === "working") return "󰐊"
     if (status === "blocked") return ""
+    if (status === "error") return ""
     if (status === "done") return ""
     if (status === "idle") return "󰒲"
     return "?"
@@ -265,7 +270,7 @@ Panel {
               spacing: Style.space(8)
 
               SummaryCell { label: "Working"; value: root.working; active: root.working > 0; runningCell: true }
-              SummaryCell { label: "Blocked"; value: root.blocked; active: root.blocked > 0; urgentCell: true }
+              SummaryCell { label: "Attention"; value: root.attentionCount; active: root.attentionCount > 0; urgentCell: true }
               SummaryCell { label: "Done"; value: Number(root.state.done || 0) }
               SummaryCell { label: "Idle"; value: Number(root.state.idle || 0) }
             }
@@ -404,13 +409,15 @@ Panel {
           color: root.foreground
           font.family: root.fontFamily
           font.pixelSize: Style.font.body
-          font.bold: agentRow.agent.status === "working" || agentRow.agent.status === "blocked"
+          font.bold: agentRow.agent.status === "working" || agentRow.agent.status === "blocked" || agentRow.agent.status === "error"
           elide: Text.ElideRight
         }
 
         Text {
           width: parent.width
-          text: String(agentRow.agent.paneId || agentRow.agent.cwd || "")
+          text: agentRow.agent.terminalId
+            ? String(agentRow.agent.terminalId) + (agentRow.agent.cwd ? " · " + String(agentRow.agent.cwd) : "")
+            : String(agentRow.agent.paneId || agentRow.agent.cwd || "")
           textFormat: Text.PlainText
           color: root.dim
           font.family: root.fontFamily
@@ -428,7 +435,7 @@ Panel {
         color: root.agentColor(String(agentRow.agent.status || "unknown"), root.dim)
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
-        font.bold: agentRow.agent.status === "blocked"
+        font.bold: agentRow.agent.status === "blocked" || agentRow.agent.status === "error"
       }
     }
   }

@@ -4,6 +4,48 @@ set -u
 host="${1-}"
 session="${2-}"
 pane="${3-}"
+backend="${4-herdr}"
+
+focus_window() {
+  local address="$1" workspace="$2"
+  [[ $workspace =~ ^(special:)?[A-Za-z0-9_-]{1,32}$ ]] && hyprctl dispatch "hl.dsp.focus({ workspace = '$workspace' })" >/dev/null 2>&1
+  [[ $address =~ ^0x[0-9a-fA-F]+$ ]] && hyprctl dispatch "hl.dsp.focus({ window = 'address:$address' })" >/dev/null 2>&1
+}
+
+if [[ $backend == core ]]; then
+  [[ $pane =~ ^([A-Za-z0-9][A-Za-z0-9._-]{0,63}/)*t[0-9a-z]+$ ]] || exit 2
+  gui=""
+  for candidate in herdr-app herdr-gui; do
+    if command -v "$candidate" >/dev/null 2>&1; then gui="$candidate"; break; fi
+  done
+  [[ -n $gui ]] || exit 1
+
+  # agent.focus also reveals sub-agents that do not have their own pane.
+  if ! timeout 2s "$gui" do agent.focus --terminal "$pane" >/dev/null 2>&1; then
+    # A running GUI may reject a stale address; opening another window cannot fix it.
+    timeout 1s "$gui" status >/dev/null 2>&1 && exit 1
+    setsid "$gui" </dev/null >/dev/null 2>&1 &
+    focused=false
+    for (( attempt=0; attempt<20; attempt++ )); do
+      if timeout 0.5s "$gui" do agent.focus --terminal "$pane" >/dev/null 2>&1; then
+        focused=true
+        break
+      fi
+      sleep 0.1
+    done
+    [[ $focused == true ]] || exit 1
+  fi
+
+  if command -v hyprctl >/dev/null 2>&1; then
+    while IFS=$'\t' read -r address workspace; do
+      focus_window "$address" "$workspace"
+      break
+    done < <(hyprctl clients -j 2>/dev/null | jq -r '.[] | select(.class == "herdr-app" or .class == "herdr-gui") | [.address, .workspace.name] | @tsv')
+  fi
+  exit 0
+fi
+
+[[ $backend == herdr ]] || exit 2
 
 [[ $host =~ ^[A-Za-z0-9_.@:-]*$ ]] || exit 2
 [[ $session =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] || exit 2
@@ -61,8 +103,7 @@ if command -v hyprctl >/dev/null 2>&1; then
       if [[ -n ${address_of_pid[$client_pid]-} ]]; then
         address="${address_of_pid[$client_pid]}"
         workspace="${workspace_of_pid[$client_pid]}"
-        [[ $workspace =~ ^(special:)?[A-Za-z0-9_-]{1,32}$ ]] && hyprctl dispatch "hl.dsp.focus({ workspace = '$workspace' })" >/dev/null 2>&1
-        [[ $address =~ ^0x[0-9a-fA-F]+$ ]] && hyprctl dispatch "hl.dsp.focus({ window = 'address:$address' })" >/dev/null 2>&1
+        focus_window "$address" "$workspace"
         exit 0
       fi
       stat_line="$(<"/proc/$client_pid/stat")" || break

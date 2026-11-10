@@ -16,7 +16,7 @@ _No response_
 
 ### Maintainer notes
 
-Requires the Herdr CLI and server, jq, GNU coreutils (`timeout`), and an Omarchy-compatible Nerd Font. OpenSSH is required only when the user configures remote hosts. The widget polls `herdr agent list` locally every three seconds and polls configured remotes through noninteractive SSH with short connection timeouts.
+Requires herdr-core (`hc`) or the legacy Herdr CLI and server, jq, GNU coreutils (`timeout`), and an Omarchy-compatible Nerd Font. Core agents open in herdr-app (previously herdr-gui). The widget polls core every three seconds, including its registered remote machines, and falls back to the legacy CLI and configured SSH targets when core is unavailable. Legacy SSH polling is noninteractive with short connection timeouts.
 
 ### Submission checklist
 
